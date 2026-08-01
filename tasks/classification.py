@@ -18,7 +18,7 @@ class ClassificationTask(BaseTask):
     The model produces a single vector of K logits per input sequence
     (see MedTsLLM.predict / forward), trained with cross-entropy and
     evaluated with accuracy / macro F1 / macro precision / macro recall,
-    matching the PTB-XL results table in the paper.
+    matching the PTB-XL classification implementation in medtsllm2.
     """
 
     def __init__(self, run_id, config, newrun=True):
@@ -29,12 +29,16 @@ class ClassificationTask(BaseTask):
         for epoch in range(self.config.training.epochs):
             print(f"Epoch {epoch + 1}/{self.config.training.epochs}")
             self.model.train()
+
             for inputs in tqdm(self.train_dataloader):
                 inputs = self.prepare_batch(inputs)
-
-                with torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.mixed):
-                    pred = self.model(inputs)          # [bs, n_classes] (raw logits in train mode)
-                    labels = inputs["labels"]          # [bs] long
+                with torch.autocast(
+                    self.device.type,
+                    dtype=torch.bfloat16,
+                    enabled=self.mixed,
+                ):
+                    pred = self.model(inputs)
+                    labels = inputs["labels"]
                     loss = self.loss_fn(pred, labels)
 
                 loss.backward()
@@ -49,6 +53,7 @@ class ClassificationTask(BaseTask):
             self.scheduler.step()
             print(f"[epoch {epoch + 1}] val:  {val_scores}")
             print(f"[epoch {epoch + 1}] test: {test_scores}")
+
         self.model.eval()
 
     def val(self):
@@ -70,17 +75,15 @@ class ClassificationTask(BaseTask):
 
         all_preds = []
         all_targets = []
-
         with torch.no_grad():
             for inputs in tqdm(dataloader, total=len(dataloader)):
                 inputs = self.prepare_batch(inputs)
-                pred = self.model(inputs)              # [bs, n_classes] (probabilities in eval mode)
+                pred = self.model(inputs)
                 all_preds.append(pred.float().cpu())
                 all_targets.append(inputs["labels"].cpu())
 
-        preds = torch.cat(all_preds, dim=0)            # [N, n_classes]
-        targets = torch.cat(all_targets, dim=0)        # [N]
-
+        preds = torch.cat(all_preds, dim=0)
+        targets = torch.cat(all_targets, dim=0)
         return preds, targets
 
     def build_loss(self):
@@ -91,7 +94,10 @@ class ClassificationTask(BaseTask):
                     weight = self.train_dataset.class_weights.to(self.device)
                 self.loss_fn = torch.nn.CrossEntropyLoss(weight=weight)
             case _:
-                raise ValueError(f"Invalid loss function selection: {self.config.training.loss}")
+                raise ValueError(
+                    f"Invalid loss function selection: "
+                    f"{self.config.training.loss}"
+                )
         return self.loss_fn
 
     def score(self, pred_scores, target):
@@ -100,7 +106,13 @@ class ClassificationTask(BaseTask):
         avg_mode = "binary" if pred_scores.size(1) == 2 else "macro"
         return {
             "accuracy": accuracy_score(target, pred),
-            "f1": f1_score(target, pred, average=avg_mode, zero_division=0),
-            "precision": precision_score(target, pred, average=avg_mode, zero_division=0),
-            "recall": recall_score(target, pred, average=avg_mode, zero_division=0),
+            "f1": f1_score(
+                target, pred, average=avg_mode, zero_division=0
+            ),
+            "precision": precision_score(
+                target, pred, average=avg_mode, zero_division=0
+            ),
+            "recall": recall_score(
+                target, pred, average=avg_mode, zero_division=0
+            ),
         }
