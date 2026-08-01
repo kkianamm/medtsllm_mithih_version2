@@ -2,10 +2,11 @@ DEBUG = false
 
 task = "classification"
 model = "medtsllm"
-# Same sequence length used by medtsllm2/configs/datasets/ptbxl_decoder.toml.
-# For MIT-BIH, 512 samples at 360 Hz represent about 1.42 seconds around a beat.
+# Same MedTsLLM decoder classification setup as medtsllm2/PTB-XL.
+# Only the dataset and its class definitions are changed.
 history_len = 512
 pred_len = 512
+
 
 [data]
 dataset = "MIT-BIH"
@@ -14,22 +15,27 @@ cols = "all"
 normalize = true
 step = 512
 
+
 [training]
-# Retained from the original medtsllm2 PTB-XL decoder configuration.
 epochs = 20
 batch_size = 16
 optimizer = "adam"
 learning_rate = 1e-4
 dropout = 0.1
 loss = "ce"
+
+# Keep the same checkpoint-selection metric as the reference PTB-XL config.
+# F1, precision and recall are still reported by ClassificationTask.
 eval_metric = "accuracy"
 eval_metric_direction = "max"
 
+
 [datasets.MIT-BIH]
 version = "1.0.0"
-root = "data/mitdb"
+root = "data/mit-bih"
 processed_dir = "processed"
 class_order = ["N", "S", "V", "F", "Q"]
+
 
 [models.medtsllm]
 d_model = 32
@@ -39,19 +45,23 @@ num_tokens = 1024
 covariate_mode = "concat"
 embedding_downsample_mode = "linear"
 
+
 [models.medtsllm.patching]
 patch_len = 32
 stride = 16
+
 
 [models.medtsllm.prompting]
 input_stats_dim = 0
 input_stats_select = "all"
 dataset = true
 task = true
-# Keep the original MedTsLLM patient-information prompting component active.
+# Same patient-information prompt switch used by the PTB-XL decoder config.
+# datasets/mitdb.py supplies age/sex descriptions from WFDB headers.
 clip = true
 input_stats = false
 examples = false
+
 
 [models.medtsllm.llm]
 enabled = true
@@ -59,6 +69,7 @@ llm = "meta-llama/Llama-2-7b-hf"
 load_in_4bit = false
 load_in_8bit = false
 llm_layers = -1
+
 
 [setup]
 seed = 0
