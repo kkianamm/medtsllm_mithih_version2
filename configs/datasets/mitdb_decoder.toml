@@ -1,0 +1,68 @@
+DEBUG = false
+
+task = "classification"
+model = "medtsllm"
+# Same sequence length used by medtsllm2/configs/datasets/ptbxl_decoder.toml.
+# For MIT-BIH, 512 samples at 360 Hz represent about 1.42 seconds around a beat.
+history_len = 512
+pred_len = 512
+
+[data]
+dataset = "MIT-BIH"
+mode = "multivariate"
+cols = "all"
+normalize = true
+step = 512
+
+[training]
+# Retained from the original medtsllm2 PTB-XL decoder configuration.
+epochs = 20
+batch_size = 16
+optimizer = "adam"
+learning_rate = 1e-4
+dropout = 0.1
+loss = "ce"
+eval_metric = "accuracy"
+eval_metric_direction = "max"
+
+[datasets.MIT-BIH]
+version = "1.0.0"
+root = "data/mitdb"
+processed_dir = "processed"
+class_order = ["N", "S", "V", "F", "Q"]
+
+[models.medtsllm]
+d_model = 32
+d_ff = 128
+n_heads = 8
+num_tokens = 1024
+covariate_mode = "concat"
+embedding_downsample_mode = "linear"
+
+[models.medtsllm.patching]
+patch_len = 32
+stride = 16
+
+[models.medtsllm.prompting]
+input_stats_dim = 0
+input_stats_select = "all"
+dataset = true
+task = true
+# Keep the original MedTsLLM patient-information prompting component active.
+clip = true
+input_stats = false
+examples = false
+
+[models.medtsllm.llm]
+enabled = true
+llm = "meta-llama/Llama-2-7b-hf"
+load_in_4bit = false
+load_in_8bit = false
+llm_layers = -1
+
+[setup]
+seed = 0
+device = "auto"
+dtype = "mixed"
+num_workers = "auto"
+logger = "print"
