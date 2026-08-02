@@ -58,7 +58,7 @@ dataset = true
 task = true
 # Same patient-information prompt switch used by the PTB-XL decoder config.
 # datasets/mitdb.py supplies age/sex descriptions from WFDB headers.
-clip = true
+clip = false
 input_stats = false
 examples = false
 
