@@ -4,7 +4,10 @@
 from pathlib import Path
 import py_compile
 import sys
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 def require(condition, message):
